@@ -1,7 +1,14 @@
-## Edizione a.a. 2023/24
-### Disclamer: This lab is heavily based on the CSE 576 homework that you can find here: ###
+## Edizione a.a. 2025/26
+### Disclamer: This lab is originally based on the CSE 576 homework that you can find here: ###
 
 #### https://github.com/holynski/cse576_sp20_hw2 ####
+
+and was subsequentally updated and expanded in the AI-Lab course at Sapienza University of Rome. 
+The current incarnation (for the course Visione Computazionale at San Raffaele University) brings other updates, in 
+particular the convertion to a newer C++ standard.
+
+--- 
+## Introduzione
 
 I file su cui lavorerete sono `resize_image.cpp`e `filter_image.cpp`. Il
 repository funziona come nel caso dell'esercizio 1, potete seguire le stesse
