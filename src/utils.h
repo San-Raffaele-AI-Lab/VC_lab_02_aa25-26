@@ -11,8 +11,8 @@ using namespace std;
 extern int tests_total;
 extern int tests_fail;
 #define TEST(EX) do {\
-  if(!(EX))fprintf(stderr, "Test %3d FAILED (%3d failed so far): [%30s] testing [%30s] in %20s, line %5d\n", tests_total++, tests_fail++,  __FUNCTION__, #EX, __FILE__, __LINE__); \
-  else     fprintf(stderr, "Test %3d PASSED (%3d failed so far): [%30s] testing [%30s] in %20s, line %5d\n", tests_total++, tests_fail  ,  __FUNCTION__, #EX, __FILE__, __LINE__); \
+  if(!(EX))fprintf(stderr, "Test %3d FAILED (%3d failed so far): [%20s] testing [%20s] in %20s, line %5d\n", tests_total++, tests_fail++,  __FUNCTION__, #EX, __FILE__, __LINE__); \
+  else     fprintf(stderr, "Test %3d PASSED (%3d failed so far): [%20s] testing [%20s] in %20s, line %5d\n", tests_total++, tests_fail  ,  __FUNCTION__, #EX, __FILE__, __LINE__); \
   } while (0)
 
 

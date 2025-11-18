@@ -1,101 +1,84 @@
-#include "../image.h"
-#include "../utils.h"
-#include "test1_legacy.hpp"
-
-#include <string>
+//
+// Created by thomas on 18/11/25.
+//
 #include <iostream>
-#include <chrono>
-#include <snitch/snitch.hpp>
-
-using namespace std;
 
 
-TEST_CASE("TEST IMAGE RESIZE NN", "[nearest_resize]") {
+void test_nn_resize() {
     Image im = load_image("data/dogsmall.jpg");
-    Image im2 = load_image("data/dog.jpg");
+    Image resized = nearest_resize(im, im.w * 4, im.h * 4);
+    Image gt = load_image("data/dog4x-nn-for-test.png");
+    TEST(same_image(resized, gt));
 
-    INFO("Test image resize");
-    SECTION("Test 1") {
-        Image resized = nearest_resize(im, im.w * 4, im.h * 4);
-        Image gt = load_image("data/dog4x-nn-for-test.png");
-        CHECK(same_image(resized, gt));
-    }
-    SECTION("Test  2") {
-        Image resized2 = nearest_resize(im2, 713, 467);
-        Image gt2 = load_image("data/dog-resize-nn.png");
-        CHECK(same_image(resized2, gt2));
-    }
+    Image im2 = load_image("data/dog.jpg");
+    Image resized2 = nearest_resize(im2, 713, 467);
+    Image gt2 = load_image("data/dog-resize-nn.png");
+    TEST(same_image(resized2, gt2));
 }
 
-TEST_CASE("TEST IMAGE RESIZE BL", "[bilinear_resize]") {
+void test_bl_resize() {
     Image im = load_image("data/dogsmall.jpg");
-    Image im2 = load_image("data/dog.jpg");
+    Image resized = bilinear_resize(im, im.w * 4, im.h * 4);
+    Image gt = load_image("data/dog4x-bl.png");
+    TEST(same_image(resized, gt));
 
-    INFO("Test image resize");
-    SECTION("Test 1") {
-        Image resized = bilinear_resize(im, im.w * 4, im.h * 4);
-        Image gt = load_image("data/dog4x-bl.png");
-        CHECK(same_image(resized, gt));
-    }
-    SECTION("Test  2") {
-        Image resized2 = bilinear_resize(im2, 713, 467);
-        Image gt2 = load_image("data/dog-resize-bil.png");
-        CHECK(same_image(resized2, gt2));
-    }
+    Image im2 = load_image("data/dog.jpg");
+    Image resized2 = bilinear_resize(im2, 713, 467);
+    Image gt2 = load_image("data/dog-resize-bil.png");
+    TEST(same_image(resized2, gt2));
 }
 
-TEST_CASE("TEST MULTIPLE RESIZE") {
+void test_multiple_resize() {
     Image im = load_image("data/dog.jpg");
-
     for (int i = 0; i < 10; i++) {
         Image im1 = bilinear_resize(im, im.w * 4, im.h * 4);
         Image im2 = bilinear_resize(im1, im1.w / 4, im1.h / 4);
         im = im2;
     }
     Image gt = load_image("data/dog-multipleresize.png");
-    CHECK(same_image(im, gt));
+    TEST(same_image(im, gt));
 }
 
-TEST_CASE("TEST HIGHPASS FILTER") {
+void test_highpass_filter() {
     Image im = load_image("data/dog.jpg");
     Image f = make_highpass_filter();
     Image blur = convolve_image(im, f, false);
     blur.clamp();
     Image gt = load_image("data/dog-highpass.png");
-    CHECK(same_image(blur, gt));
+    TEST(same_image(blur, gt));
 }
 
-TEST_CASE("TEST EMBOSS FILTER") {
+void test_emboss_filter() {
     Image im = load_image("data/dog.jpg");
     Image f = make_emboss_filter();
     Image blur = convolve_image(im, f, true);
     blur.clamp();
 
     Image gt = load_image("data/dog-emboss.png");
-    CHECK(same_image(blur, gt));
+    TEST(same_image(blur, gt));
 }
 
-TEST_CASE("TEST SHARPEN FILTER") {
+void test_sharpen_filter() {
     Image im = load_image("data/dog.jpg");
     Image f = make_sharpen_filter();
     Image blur = convolve_image(im, f, true);
     blur.clamp();
 
     Image gt = load_image("data/dog-sharpen.png");
-    CHECK(same_image(blur, gt));
+    TEST(same_image(blur, gt));
 }
 
-TEST_CASE("TEST CONVOLUTION") {
+void test_convolution() {
     Image im = load_image("data/dog.jpg");
     Image f = make_box_filter(7);
     Image blur = convolve_image(im, f, true);
     blur.clamp();
 
     Image gt = load_image("data/dog-box7.png");
-    CHECK(same_image(blur, gt));
+    TEST(same_image(blur, gt));
 }
 
-TEST_CASE("TEST FAST CONVOLUTION") {
+void test_fast_convolution() {
     Image im = load_image("data/dog.jpg");
     Image f = make_box_filter(15);
     // time the standard convolution
@@ -110,36 +93,35 @@ TEST_CASE("TEST FAST CONVOLUTION") {
     stop = chrono::high_resolution_clock::now();
     auto fast_time = chrono::duration_cast<chrono::microseconds>(stop - t);
     blur2.clamp();
-    cout << "Standard convolution took " << standard_time.count() << " seconds" << endl;
-    cout << "Fast convolution took " << fast_time.count() << " seconds" << endl;
+    std::cout << "Standard convolution took " << standard_time.count() << " seconds" << std::endl;
+    std::cout << "Fast convolution took " << fast_time.count() << " seconds" << std::endl;
 
     Image gt = load_image("data/dog-box7.png");
-    CHECK(same_image(blur, gt));
-    CHECK(same_image(blur, blur2));
-    CHECK(fast_time < standard_time/2);
+    TEST(same_image(blur, gt));
+    TEST(same_image(blur, blur2));
+    TEST(fast_time < standard_time/2);
 }
 
-
-TEST_CASE("TEST GAUSSIAN FILTER") {
+void test_gaussian_filter() {
     Image f = make_gaussian_filter(7);
 
     for (int i = 0; i < f.w * f.h * f.c; i++)f.data[i] *= 100;
 
     Image gt = load_image("data/gaussian_filter_7.png");
-    CHECK(same_image(f, gt));
+    TEST(same_image(f, gt));
 }
 
-TEST_CASE("TEST GAUSSIAN BLUR") {
+void test_gaussian_blur() {
     Image im = load_image("data/dog.jpg");
     Image f = make_gaussian_filter(2);
     Image blur = convolve_image(im, f, true);
     blur.clamp();
 
     Image gt = load_image("data/dog-gauss2.png");
-    CHECK(same_image(blur, gt));
+    TEST(same_image(blur, gt));
 }
 
-TEST_CASE("TEST HYBRID IMAGE") {
+void test_hybrid_image() {
     Image man = load_image("data/melisa.png");
     Image woman = load_image("data/aria.png");
     Image f = make_gaussian_filter(2);
@@ -149,10 +131,10 @@ TEST_CASE("TEST HYBRID IMAGE") {
     Image reconstruct = lfreq_man + hfreq_w;
     Image gt = load_image("data/hybrid.png");
     reconstruct.clamp();
-    CHECK(same_image(reconstruct, gt));
+    TEST(same_image(reconstruct, gt));
 }
 
-TEST_CASE("TEST FREQUENCY IMAGE") {
+void test_frequency_image() {
     Image im = load_image("data/dog.jpg");
     Image f = make_gaussian_filter(2);
     Image lfreq = convolve_image(im, f, true);
@@ -164,12 +146,12 @@ TEST_CASE("TEST FREQUENCY IMAGE") {
 
     lfreq.clamp();
     hfreq.clamp();
-    CHECK(same_image(lfreq, low_freq));
-    CHECK(same_image(hfreq, high_freq));
-    CHECK(same_image(reconstruct, im));
+    TEST(same_image(lfreq, low_freq));
+    TEST(same_image(hfreq, high_freq));
+    TEST(same_image(reconstruct, im));
 }
 
-TEST_CASE("TEST SOBEL") {
+void test_sobel() {
     Image im = load_image("data/dog.jpg");
     pair<Image, Image> res = sobel_image(im);
     Image mag = res.first;
@@ -180,14 +162,13 @@ TEST_CASE("TEST SOBEL") {
 
     Image gt_mag = load_image("data/magnitude.png");
     Image gt_theta = load_image("data/theta.png");
-    CHECK(gt_mag.w == mag.w && gt_theta.w == theta.w);
-    CHECK(gt_mag.h == mag.h && gt_theta.h == theta.h);
-    CHECK(gt_mag.c == mag.c && gt_theta.c == theta.c);
-
-    // if (gt_mag.w != mag.w || gt_theta.w != theta.w ||
-    //     gt_mag.h != mag.h || gt_theta.h != theta.h ||
-    //     gt_mag.c != mag.c || gt_theta.c != theta.c)
-    //     return;
+    TEST(gt_mag.w == mag.w && gt_theta.w == theta.w);
+    TEST(gt_mag.h == mag.h && gt_theta.h == theta.h);
+    TEST(gt_mag.c == mag.c && gt_theta.c == theta.c);
+    if (gt_mag.w != mag.w || gt_theta.w != theta.w ||
+        gt_mag.h != mag.h || gt_theta.h != theta.h ||
+        gt_mag.c != mag.c || gt_theta.c != theta.c)
+        return;
 
     for (int i = 0; i < gt_mag.w * gt_mag.h; ++i) {
         if (within_eps(gt_mag.data[i], 0)) {
@@ -207,20 +188,20 @@ TEST_CASE("TEST SOBEL") {
     Image imo = colorize_sobel(im);
     save_png(imo, "output/color_sobel");
 
-    CHECK(same_image(mag, gt_mag));
-    CHECK(same_image(theta, gt_theta));
+    TEST(same_image(mag, gt_mag));
+    TEST(same_image(theta, gt_theta));
 }
 
-TEST_CASE("TEST BILATERAL") {
+void test_bilateral() {
     Image im = load_image("data/dog.jpg");
     Image bif = bilateral_filter(im, 3, 0.1);
 
     save_png(bif, "output/bilateral");
     Image gt = load_image("data/dog-bilateral.png");
-    CHECK(same_image(bif, gt));
+    TEST(same_image(bif, gt));
 }
 
-TEST_CASE("TEST FAST BILATERAL") {
+void test_fast_bilateral(){
     Image im = load_image("data/dog.jpg");
     // time the standard bilateral filter
     auto t = chrono::high_resolution_clock::now();
@@ -234,50 +215,51 @@ TEST_CASE("TEST FAST BILATERAL") {
     stop = chrono::high_resolution_clock::now();
     auto fast_time = chrono::duration_cast<chrono::milliseconds>(stop - t);
 
-    cout << "Standard bilateral filter took " << standard_time.count() << " milliseconds" << endl;
-    cout << "Fast bilateral filter took " << fast_time.count() << " milliseconds" << endl;
+    std::cout << "Standard bilateral filter took " << standard_time.count() << " milliseconds" << std::endl;
+    std::cout << "Fast bilateral filter took " << fast_time.count() << " milliseconds" << std::endl;
 
     save_png(bif, "output/bilateral_fast");
     Image gt = load_image("data/dog-bilateral.png");
-    CHECK(same_image(bif, gt));
-    CHECK(same_image(fast_bif, gt));
+    TEST(same_image(bif, gt));
+    TEST(same_image(fast_bif, gt));
     // check that the fast bilateral filter is faster
-    CHECK(fast_time < standard_time/2);
+    TEST(fast_time < standard_time/2);
 }
 
-TEST_CASE("TEST EQUALIZATION") {
+void test_equalization() {
     Image im = load_image("data/dog.jpg");
     Image eqim1 = histogram_equalization_rgb(im, 256);
     save_png(eqim1, "output/equalized_rgb");
     Image gt1 = load_image("data/equalized_rgb.png");
-    CHECK(same_image(eqim1, gt1));
+    TEST(same_image(eqim1, gt1));
 
     Image eqim2 = histogram_equalization_hsv(im, 256);
     save_png(eqim2, "output/equalized_hsv");
     Image gt2 = load_image("data/equalized_hsv.png");
-    CHECK(same_image(eqim2, gt2));
+    TEST(same_image(eqim2, gt2));
 }
 
 
-int main(int argc, char **argv) {
-    // Parse the command-line arguments.
-    std::optional<snitch::cli::input> args = snitch::cli::parse_arguments(argc, argv);
-    if (!args) {
-        // Parsing failed, an error has been reported, just return.
-        return 1;
-    }
+void run_tests() {
+    test_nn_resize();
+    test_bl_resize();
+    test_multiple_resize();
 
-    // Configure snitch using command-line options.
-    // You can then override the configuration below, or just remove this call to disable
-    // command-line options entirely.
-    snitch::tests.configure(*args);
-    snitch::tests.verbose = snitch::registry::verbosity::full; // change this to ::normal to print only failed tests
+    test_gaussian_filter();
+    test_sharpen_filter();
+    test_emboss_filter();
+    test_highpass_filter();
+    test_convolution();
+    test_gaussian_blur();
+    test_hybrid_image();
+    test_frequency_image();
+    test_sobel();
 
-    // To run legacy tests uncomment the following lines
-    run_tests();
-    std::cout << std::endl;
-
-    // Actually run the tests.
-    // This will apply any filtering specified on the command-line.
-    return snitch::tests.run_tests(*args) ? 0 : 1;
+    // test_bilateral();
+    // test_equalization();
+    // tests on code efficiency
+    // test_fast_convolution();
+    // test_fast_bilateral();
+    printf("%d tests, %d passed, %d failed\n", tests_total,
+           tests_total - tests_fail, tests_fail);
 }
