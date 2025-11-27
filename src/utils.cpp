@@ -10,6 +10,19 @@ int tests_fail = 0;
 
 int same_image(const Image& a, const Image& b) { return a==b; }
 
+int image_close_enough(const Image& a, const Image& b, float eps)
+{
+    float sum = 0;
+    for (int i = 0; i < a.w; i++) {
+      for (int j = 0; j < a.h; j++) {
+        for (int k = 0; k < a.c; k++) {
+          sum += abs(a(i,j,k) - b(i,j,k));
+        }
+      }
+    }
+    return sum < eps;
+}
+
 bool operator ==(const Image& a, const Image& b)
 {
   if(a.w != b.w || a.h != b.h || a.c != b.c)

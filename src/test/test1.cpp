@@ -15,16 +15,28 @@ TEST_CASE("TEST IMAGE RESIZE NN", "[nearest_resize]") {
     Image im2 = load_image("data/dog.jpg");
 
     INFO("Test image resize");
-    SECTION("Test 1") {
+    SECTION("Test 1: Resize to 4x") {
         Image resized = nearest_resize(im, im.w * 4, im.h * 4);
         Image gt = load_image("data/dog4x-nn-for-test.png");
         CHECK(same_image(resized, gt));
     }
-    SECTION("Test  2") {
+    SECTION("Test  2: Slightly smaller") {
         Image resized2 = nearest_resize(im2, 713, 467);
         Image gt2 = load_image("data/dog-resize-nn.png");
         CHECK(same_image(resized2, gt2));
     }
+    SECTION("Test  3: Identity") {
+        Image resized2 = nearest_resize(im2, im2.w, im2.h);
+        save_image(resized2, "figs/dog-nn");
+        Image gt2 = load_image("data/dog.jpg");
+        CHECK(same_image(resized2, gt2));
+    }
+    // SECTION("Test  4: Very small dog") {
+    //     Image resized2 = nearest_resize(im2, 192, 144);
+    //     save_image(resized2, "figs/dogmall-nn");
+    //     Image gt2 = load_image("data/dogsmall-nn.jpg"); // fixme: this gt file has been low passed!
+    //     CHECK(same_image(resized2, gt2));
+    // }
 }
 
 TEST_CASE("TEST IMAGE RESIZE BL", "[bilinear_resize]") {
@@ -32,16 +44,29 @@ TEST_CASE("TEST IMAGE RESIZE BL", "[bilinear_resize]") {
     Image im2 = load_image("data/dog.jpg");
 
     INFO("Test image resize");
-    SECTION("Test 1") {
+    SECTION("BL Test 1: Resize 4x") {
         Image resized = bilinear_resize(im, im.w * 4, im.h * 4);
         Image gt = load_image("data/dog4x-bl.png");
         CHECK(same_image(resized, gt));
     }
-    SECTION("Test  2") {
+    SECTION("BL Test  2: Slightly smaller") {
         Image resized2 = bilinear_resize(im2, 713, 467);
+        save_image(resized2, "figs/dog-slightly-small-bl");
         Image gt2 = load_image("data/dog-resize-bil.png");
         CHECK(same_image(resized2, gt2));
     }
+    SECTION("BL Test  3: Identity") {
+        Image resized2 = bilinear_resize(im2, im2.w, im2.h);
+        save_image(resized2, "figs/dog-bl");
+        Image gt2 = load_image("data/dog.jpg");
+        CHECK(image_close_enough(resized2, gt2)); // this cannot be exactly the same, unless ones checks for identity in bilinear_resize
+    }
+    // SECTION("BL Test  4: Small dog") {
+    //     Image resized2 = bilinear_resize(im2, 192, 144);
+    //     save_image(resized2, "figs/dog-small-bl");
+    //     Image gt2 = load_image("data/dogsmall-bl.png"); // fixme: this gt file has been low passed!
+    //     CHECK(same_image(resized2, gt2));
+    // }
 }
 
 TEST_CASE("TEST MULTIPLE RESIZE") {
@@ -274,8 +299,8 @@ int main(int argc, char **argv) {
     snitch::tests.verbose = snitch::registry::verbosity::full; // change this to ::normal to print only failed tests
 
     // To run legacy tests uncomment the following lines
-    run_tests();
-    std::cout << std::endl;
+    // run_tests();
+    // std::cout << std::endl;
 
     // Actually run the tests.
     // This will apply any filtering specified on the command-line.

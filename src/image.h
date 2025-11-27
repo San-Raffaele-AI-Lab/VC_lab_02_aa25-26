@@ -203,6 +203,7 @@ void clamp_image(Image& im);
 Image get_channel(const Image& im, int c);
 bool operator ==(const Image& a, const Image& b);
 int same_image(const Image& a, const Image& b);
+int image_close_enough(const Image& a, const Image& b, float eps=1e-6);
 
 Image sub_image(const Image& a, const Image& b);
 Image add_image(const Image& a, const Image& b);
