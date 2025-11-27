@@ -16,6 +16,8 @@ FetchContent_Declare(snitch
         GIT_TAG v1.3.2) # update version number as needed
 FetchContent_MakeAvailable(snitch)
 
+# Add Eigen include path
+set(EIGEN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_library(srimg++ SHARED # stands for "San Raffaele Image Library ++"
         src/utils.cpp
@@ -32,6 +34,12 @@ add_library(srimg++ SHARED # stands for "San Raffaele Image Library ++"
         src/resize_image.cpp  # file to edit
         src/filter_image.cpp
 
+)
+
+target_include_directories(srimg++ PUBLIC
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        ${EIGEN_INCLUDE_DIR}
 )
 
 add_executable(test0 src/test/test0.cpp)

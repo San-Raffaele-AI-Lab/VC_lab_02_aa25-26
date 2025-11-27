@@ -226,11 +226,11 @@ TEST_CASE("TEST SOBEL") {
         }
     }
 
-    save_png(mag, "output/mag");
-    save_png(theta, "output/theta");
+    save_png(mag, "figs/mag");
+    save_png(theta, "figs/theta");
 
     Image imo = colorize_sobel(im);
-    save_png(imo, "output/color_sobel");
+    save_png(imo, "figs/color_sobel");
 
     CHECK(same_image(mag, gt_mag));
     CHECK(same_image(theta, gt_theta));
@@ -240,7 +240,7 @@ TEST_CASE("TEST BILATERAL") {
     Image im = load_image("data/dog.jpg");
     Image bif = bilateral_filter(im, 3, 0.1);
 
-    save_png(bif, "output/bilateral");
+    save_png(bif, "figs/bilateral");
     Image gt = load_image("data/dog-bilateral.png");
     CHECK(same_image(bif, gt));
 }
@@ -262,7 +262,7 @@ TEST_CASE("TEST FAST BILATERAL") {
     cout << "Standard bilateral filter took " << standard_time.count() << " milliseconds" << endl;
     cout << "Fast bilateral filter took " << fast_time.count() << " milliseconds" << endl;
 
-    save_png(bif, "output/bilateral_fast");
+    save_png(bif, "figs/bilateral_fast");
     Image gt = load_image("data/dog-bilateral.png");
     CHECK(same_image(bif, gt));
     CHECK(same_image(fast_bif, gt));
@@ -273,12 +273,12 @@ TEST_CASE("TEST FAST BILATERAL") {
 TEST_CASE("TEST EQUALIZATION") {
     Image im = load_image("data/dog.jpg");
     Image eqim1 = histogram_equalization_rgb(im, 256);
-    save_png(eqim1, "output/equalized_rgb");
+    save_png(eqim1, "figs/equalized_rgb");
     Image gt1 = load_image("data/equalized_rgb.png");
     CHECK(same_image(eqim1, gt1));
 
     Image eqim2 = histogram_equalization_hsv(im, 256);
-    save_png(eqim2, "output/equalized_hsv");
+    save_png(eqim2, "figs/equalized_hsv");
     Image gt2 = load_image("data/equalized_hsv.png");
     CHECK(same_image(eqim2, gt2));
 }

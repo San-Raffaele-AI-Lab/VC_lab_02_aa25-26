@@ -71,7 +71,7 @@ class Image
 
       const float& operator()(int x, int y) const
         {
-        check_bounds(x, y, 9);
+        check_bounds(x, y, 0);
         return data[pixel_address(*this,x,y,0)];
         }
 

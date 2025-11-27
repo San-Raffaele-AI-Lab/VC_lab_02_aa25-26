@@ -5,14 +5,31 @@
 #include <assert.h>
 #include "image.h"
 
+#include <Eigen/Core>
+#include <Eigen/Dense>
+#include <algorithm>
+
 #define M_PI 3.14159265358979323846
 
 // HW1 #2.1
 // Image& im: image to L1-normalize
 void l1_normalize(Image &im) {
 
-    // TODO: Normalize each channel
-    NOT_IMPLEMENTED();
+    // Normalize each channel
+    for (int k = 0; k < im.c; ++k) {
+        float sum = 0;
+        for (int i = 0; i < im.w; ++i) {
+            for (int j = 0; j < im.h; ++j) {
+                sum += im(i, j, k);
+            }
+
+        }
+        for (int i = 0; i < im.w; ++i) {
+            for (int j = 0; j < im.h; ++j) {
+                im(i, j, k) /= sum;
+            }
+        }
+    }
 
 
 }
@@ -23,10 +40,16 @@ void l1_normalize(Image &im) {
 Image make_box_filter(int w) {
     assert(w % 2); // w needs to be odd
 
-    // TODO: Implement the filter
-    NOT_IMPLEMENTED();
+    Image filter = Image(w, w, 1);
+    float normalizer = 1.0 / (w * w);
+    for (int i = 0; i < w; ++i) {
+        for (int j = 0; j < w; ++j) {
+            filter(i, j, 0) = normalizer;
+        }
 
-    return Image(1, 1, 1);
+    }
+
+    return filter;
 }
 
 // HW1 #2.2
@@ -36,16 +59,108 @@ Image make_box_filter(int w) {
 // returns the convolved image
 Image convolve_image(const Image &im, const Image &filter, bool preserve) {
     assert(filter.c == 1);
+    int filter_offset = filter.w / 2;
     Image ret;
+    if (preserve) {
+        ret = Image(im.w, im.h, im.c);
+    } else {
+        ret = Image(im.w, im.h, 1);
+    }
     // This is the case when we need to use the function clamped_pixel(x,y,c).
     // Otherwise you'll have to manually check whether the filter goes out of bounds
 
-    // TODO: Make sure you set the sizes of ret properly. Use ret=Image(w,h,c) to reset ret
-    // TODO: Do the convolution operator
-    NOT_IMPLEMENTED();
+    // for each pixel in im
+    for (int i = 0; i < im.w; ++i) {
+        for (int j = 0; j < im.h; ++j) {
+            if (preserve) {
+                for (int k = 0; k < im.c; ++k) {
+                    float sum = 0;
+                    for (int l = -filter_offset; l <= filter_offset; ++l) {
+                        for (int m = -filter_offset; m <= filter_offset; ++m) {
+                            float a = im.clamped_pixel(i - l, j - m, k);
+                            float b = filter(filter_offset - l,
+                                             filter_offset - m);
+                            sum += a * b;
+                        }
+                    } //end for k
+                    ret(i, j, k) = sum;
+                }
+            } else {
 
-    // Make sure to return ret and not im. This is just a placeholder
+                float sum = 0;
+                for (int l = -filter_offset; l <= filter_offset; ++l) {
+                    for (int m = -filter_offset; m <= filter_offset; ++m) {
+                        for (int k = 0; k < im.c; ++k) {
+                            float a = im.clamped_pixel(i - l, j - m, k);
+                            float b = filter(filter_offset - l,
+                                             filter_offset - m);
+                            sum += a * b;
+                        }
+                    }
+                }
+                ret(i, j, 0) = sum;
+
+            }
+        }
+    }
+
+    return ret;
+}
+
+// HW1 #2.2+ Fast convolution
+// Functions for matrix to image and image to matrix conversion:
+Eigen::MatrixXd imageToMatrix(const Image& img, int ch, int kernel, bool pad) {
+    // CONVERT IMAGE (SINGLE CHANNEL) TO EIGEN MATRIX
+    if (pad){
+        // PAD THE IMAGE WITH THE CLAMPED PIXELS
+        Eigen::MatrixXd matrix(img.h+kernel+kernel, img.w+kernel+kernel);
+        for (int i = (-kernel); i < img.h+kernel; i++) {
+            for (int j = (-kernel); j < img.w+kernel; j++) {
+                matrix(i+kernel, j+kernel) = img.clamped_pixel(j, i, ch);
+            }
+        }
+        return matrix;
+    }
+    else{
+        // THE FILTER SHALL NOT BE PADDED
+        Eigen::MatrixXd matrix(img.h, img.w);
+        for (int i = 0; i < img.h; i++) {
+            for (int j = 0; j < img.w; j++) {
+                matrix(i, j) = img(i, j, ch);
+            }
+        }
+        return matrix;
+    }
+}
+
+Image matrixToImage(const Eigen::MatrixXd& matrixRed, const Eigen::MatrixXd& matrixGreen, const Eigen::MatrixXd& matrixBlue){
+    // REASSEMBLE THE IMAGE GIVEN THE 3 EIGEN MATRICES (3 CHANNELS)
+    assert(matrixRed.cols()==matrixGreen.cols() && matrixGreen.cols()==matrixBlue.cols());
+    assert(matrixRed.rows()==matrixGreen.rows() && matrixGreen.rows()==matrixBlue.rows());
+    int rows = matrixRed.rows();
+    int cols = matrixRed.cols();
+
+    Image im(cols, rows, 3);
+
+    for (int i = 0; i < cols; i++)for (int j = 0; j < rows; j++){
+        im(i, j, 0) = matrixRed(j, i);
+        im(i, j, 1) = matrixGreen(j, i);
+        im(i, j, 2) = matrixBlue(j, i);
+    }
     return im;
+}
+
+Image matrixToImage(const Eigen::MatrixXd& matrix){
+    int rows = matrix.rows();
+    int cols = matrix.cols();
+
+    Image im(cols, rows);
+
+    for (int i = 0; i < cols; i++)for (int j = 0; j < rows; j++){
+        im(i, j) = matrix(j, i);
+    }
+    return im;
+
 }
 
 // HW1 #2.2+ Fast convolution
@@ -59,53 +174,134 @@ Image convolve_image_fast(const Image &im, const Image &filter, bool preserve) {
     // This is the case when we need to use the function clamped_pixel(x,y,c).
     // Otherwise you'll have to manually check whether the filter goes out of bounds
 
-    // TODO: Make sure you set the sizes of ret properly. Use ret=Image(w,h,c) to reset ret
-    // TODO: Do the fast convolution operator. Remember to use Eigen for matrix operations
-    NOT_IMPLEMENTED();
+    int kernel = (filter.w)/2;
 
-    // Make sure to return ret and not im. This is just a placeholder
-    return im;
+    int input_rows = im.h;
+    int input_cols = im.w;
+    int kernel_rows = filter.h;
+    int kernel_cols = filter.w;
+
+    Eigen::MatrixXd redImage{imageToMatrix(im, 0, kernel, true)};
+    Eigen::MatrixXd greenImage{imageToMatrix(im, 1, kernel, true)};
+    Eigen::MatrixXd blueImage{imageToMatrix(im, 2, kernel, true)};
+    Eigen::MatrixXd newKernel{imageToMatrix(filter, 0, kernel, false)};
+
+    if (preserve){
+        Eigen::MatrixXd outputRed = Eigen::MatrixXd::Zero(input_rows, input_cols);
+        Eigen::MatrixXd outputGreen = Eigen::MatrixXd::Zero(input_rows, input_cols);
+        Eigen::MatrixXd outputBlue = Eigen::MatrixXd::Zero(input_rows, input_cols);
+        for (int i = 0; i < input_rows; i++) {
+            for (int j = 0; j < input_cols; j++) {
+                Eigen::MatrixXd input_patchRed = redImage.block(i, j, kernel_rows, kernel_cols);
+                outputRed(i, j) = (input_patchRed.array() * newKernel.array()).sum();
+                Eigen::MatrixXd input_patchGreen = greenImage.block(i, j, kernel_rows, kernel_cols);
+                outputGreen(i, j) = (input_patchGreen.array() * newKernel.array()).sum();
+                Eigen::MatrixXd input_patchBlue = blueImage.block(i, j, kernel_rows, kernel_cols);
+                outputBlue(i, j) = (input_patchBlue.array() * newKernel.array()).sum();
+            }
+        }
+        // Re-assemble the image Eigen -> Image
+        Image newImage = matrixToImage(outputRed, outputGreen, outputBlue);
+        return newImage;
+    }
+    else{
+        Eigen::MatrixXd output = Eigen::MatrixXd::Zero(input_rows, input_cols);
+        for (int i = 0; i < input_rows; i++) {
+            for (int j = 0; j < input_cols; j++) {
+                Eigen::MatrixXd input_patchRed = redImage.block(i, j, kernel_rows, kernel_cols);
+                output(i, j) += (input_patchRed.array() * newKernel.array()).sum();
+                Eigen::MatrixXd input_patchGreen = greenImage.block(i, j, kernel_rows, kernel_cols);
+                output(i, j) += (input_patchGreen.array() * newKernel.array()).sum();
+                Eigen::MatrixXd input_patchBlue = blueImage.block(i, j, kernel_rows, kernel_cols);
+                output(i, j) += (input_patchBlue.array() * newKernel.array()).sum();
+            }
+        }
+        Image newImage = matrixToImage(output);
+        return newImage;
+    }
 }
 
 
 // HW1 #2.3
 // returns basic 3x3 high-pass filter
 Image make_highpass_filter() {
-    // TODO: Implement the filter
-    NOT_IMPLEMENTED();
+    Image filter = Image(3, 3, 1);
+    float filter_caps[3][3] = {{0,  -1, 0},
+                               {-1, 4,  -1},
+                               {0,  -1, 0}};
+    float normalizer = 1.0;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            filter(i, j, 0) = filter_caps[i][j] * normalizer;
+        }
 
-    return Image(1, 1, 1);
+    }
+
+    return filter;
 
 }
 
 // HW1 #2.3
 // returns basic 3x3 sharpen filter
 Image make_sharpen_filter() {
-    // TODO: Implement the filter
-    NOT_IMPLEMENTED();
+    Image filter = Image(3, 3, 1);
+    float filter_caps[3][3] = {{0,  -1, 0},
+                               {-1, 5,  -1},
+                               {0,  -1, 0}};
+    float normalizer = 1.0;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            filter(i, j, 0) = filter_caps[i][j] * normalizer;
+        }
 
-    return Image(1, 1, 1);
+    }
+
+    return filter;
 
 }
 
 // HW1 #2.3
 // returns basic 3x3 emboss filter
 Image make_emboss_filter() {
-    // TODO: Implement the filter
-    NOT_IMPLEMENTED();
+    Image filter = Image(3, 3, 1);
+    float filter_caps[3][3] = {{-2, -1, 0},
+                               {-1, 1,  +1},
+                               {0,  +1, +2}};
+    float normalizer = 1.0;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            filter(i, j, 0) = filter_caps[i][j] * normalizer;
+        }
 
-    return Image(1, 1, 1);
+    }
 
+    return filter;
 }
 
 // HW1 #2.4
 // float sigma: sigma for the gaussian filter
 // returns basic gaussian filter
-Image make_gaussian_filter(float sigma) {
-    // TODO: Implement the filter
-    NOT_IMPLEMENTED();
+float compute_2d_gaussian(float x, float y, float sigma) {
+    double sigma2 = sigma * sigma;
+    return 1.0 / (2 * M_PI * sigma2) * exp(-(x * x + y * y) / (2 * sigma2));
+}
 
-    return Image(1, 1, 1);
+Image make_gaussian_filter(float sigma) {
+    // kernel size 6x sigma
+    int range = round(sigma * 3);
+    int size = range * 2 + 1;
+
+    // fill the kernel
+    Image filter(size, size, 1);
+    for (int l = 0; l < size; ++l) {
+        for (int m = 0; m < size; ++m) {
+            filter(l, m, 0) = compute_2d_gaussian(l - range, m - range, sigma);
+        }
+
+    }
+    // the following line is not strictly necessary to pass the test, but it is  more correct
+    l1_normalize(filter);
+    return filter;
 
 }
 
@@ -118,10 +314,16 @@ Image add_image(const Image &a, const Image &b) {
     assert(a.w == b.w && a.h == b.h &&
            a.c == b.c); // assure images are the same size
 
-    // TODO: Implement addition
-    NOT_IMPLEMENTED();
+    Image result(a.w, a.h, a.c);
+    for (int i = 0; i < a.w; ++i) {
+        for (int j = 0; j < a.h; ++j) {
+            for (int k = 0; k < a.c; ++k) {
+                result(i, j, k) = a(i, j, k) + b(i, j, k);
+            }
+        }
+    }
 
-    return a;
+    return result;
 
 }
 
@@ -133,38 +335,73 @@ Image sub_image(const Image &a, const Image &b) {
     assert(a.w == b.w && a.h == b.h &&
            a.c == b.c); // assure images are the same size
 
-    // TODO: Implement subtraction
-    NOT_IMPLEMENTED();
+    Image result(a.w, a.h, a.c);
+    for (int i = 0; i < a.w; ++i) {
+        for (int j = 0; j < a.h; ++j) {
+            for (int k = 0; k < a.c; ++k) {
+                result(i, j, k) = a(i, j, k) - b(i, j, k);
+            }
+        }
+    }
 
-    return a;
+    return result;
 
 }
 
 // HW1 #4.1
 // returns basic GX filter
 Image make_gx_filter() {
-    // TODO: Implement the filter
-    NOT_IMPLEMENTED();
+    Image filter = Image(3, 3, 1);
+    float filter_caps[3][3] = {{-1, 0, 1},
+                               {-2, 0, 2},
+                               {-1, 0, 1}};
+    float normalizer = 1.0 / 8;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            filter(i, j, 0) = filter_caps[j][i] * normalizer;
+        }
 
-    return Image(1, 1, 1);
+    }
+    return filter;
 }
 
 // HW1 #4.1
 // returns basic GY filter
 Image make_gy_filter() {
-    // TODO: Implement the filter
-    NOT_IMPLEMENTED();
+    Image filter = Image(3, 3, 1);
+    float filter_caps[3][3] = {{-1, -2, -1},
+                               {0,  0,  0},
+                               {1,  2,  1}};
+    float normalizer = 1.0 / 8;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            filter(i, j, 0) = filter_caps[j][i] * normalizer;
+        }
 
-    return Image(1, 1, 1);
+    }
+
+    return filter;
 }
 
 // HW1 #4.2
 // Image& im: input image
 void feature_normalize(Image &im) {
+    assert(im.c == 1); // assure single channel image
     assert(im.w * im.h); // assure we have non-empty image
+    std::vector<float>::iterator start_it = im.data.begin();
+    std::vector<float>::iterator end_it = im.data.end();
+    pair<std::vector<float>::iterator, std::vector<float>::iterator> minmax = std::minmax_element(start_it, end_it);
+    float min_val = *minmax.first;
+    float max_val = *minmax.second;
+    float range = max_val - min_val;
 
-    // TODO: Normalize the features for each channel
-    NOT_IMPLEMENTED();
+    if (!range) return; // the image is already empty
+
+    for (int i = 0; i < im.w; ++i) {
+        for (int j = 0; j < im.h; ++j) {
+            im(i, j) = (im(i, j) - min_val) / range;
+        }
+    }
 
 }
 
@@ -189,10 +426,22 @@ void feature_normalize_total(Image &im) {
 // Image& im: input image
 // return a pair of images of the same size
 pair<Image, Image> sobel_image(const Image &im) {
-    // TODO: Your code here
-    NOT_IMPLEMENTED();
+    Image fx = make_gx_filter();
+    Image fy = make_gy_filter();
+    Image Gx = convolve_image(im, fx, false);
+    Image Gy = convolve_image(im, fy, false);
 
-    return {im, im};
+    Image mod(im.w, im.h, 1);
+    Image theta(im.w, im.h, 1);
+    for (int i = 0; i < im.w; ++i) {
+        for (int j = 0; j < im.h; ++j) {
+            double gx = Gx(i, j, 0);
+            double gy = Gy(i, j, 0);
+            mod(i, j, 0) = sqrtf(pow(gx, 2) + pow(gy, 2));
+            theta(i, j, 0) = atan2f(gy, gx);
+        }
+    }
+    return {mod, theta};
 }
 
 
@@ -201,10 +450,79 @@ pair<Image, Image> sobel_image(const Image &im) {
 // returns the colorized Sobel image of the same size
 Image colorize_sobel(const Image &im) {
 
-    // TODO: Your code here
-    NOT_IMPLEMENTED();
+    Image f = make_gaussian_filter(4);
+    Image blur = convolve_image(im, f, true);
+    blur.clamp();
 
-    return im;
+    pair<Image, Image> sobel = sobel_image(blur);
+
+    Image mag = sobel.first;  // ampiezza
+    Image theta = sobel.second; // direzione gradiente
+
+
+    feature_normalize(mag);
+
+    for (int y = 0; y < im.h; y++) {
+        for (int x = 0; x < im.w; x++) {
+            theta(x, y, 0) = theta(x, y, 0) / (2 * M_PI) + 0.5;
+        }
+    }
+
+
+    Image hsv(im.w, im.h, 3);
+
+    for (int y = 0; y < im.h; y++) {
+        for (int x = 0; x < im.w; x++) {
+            hsv(x, y, 0) = theta(x, y, 0);
+            hsv(x, y, 1) = mag(x, y, 0);
+            hsv(x, y, 2) = mag(x, y, 0);
+        }
+    }
+
+    hsv_to_rgb(hsv);
+
+    return hsv;
+}
+
+
+Image make_bilateral_filter(const Image &im, const Image &sgf, int cx, int cy, int cc, float sigma) {
+
+    // Color gaussian filter
+    Image cgf(sgf.w, sgf.h, 1);
+
+    for (int y = 0; y < sgf.w; y++) {
+        for (int x = 0; x < sgf.w; x++) {
+            int ax = cx - sgf.w / 2 + x;
+            int ay = cy - sgf.w / 2 + y;
+
+            float diff = im.clamped_pixel(ax, ay, cc) - im.clamped_pixel(cx, cy, cc);
+
+            float var = powf(sigma, 2);
+            float c = 2 * M_PI * var;
+            float p = -powf(diff, 2) / (2 * var);
+            float e = expf(p);
+            float val = e / c;
+
+            cgf(x, y, 0) = val;
+
+        }
+    }
+
+
+    Image bf(sgf.w, sgf.h, 1);
+
+    // Multiply space gaussian by color gaussian
+    for (int y = 0; y < bf.h; y++) {
+        for (int x = 0; x < bf.w; x++) {
+            bf(x, y, 0) = sgf(x, y, 0) * cgf(x, y, 0);
+        }
+    }
+
+
+    l1_normalize(bf);
+
+
+    return bf;
 }
 
 
@@ -213,12 +531,37 @@ Image colorize_sobel(const Image &im) {
 // float sigma1,sigma2: the two sigmas for bilateral filter
 // returns the result of applying bilateral filtering to im
 Image bilateral_filter(const Image &im, float sigma1, float sigma2) {
-    Image bf = im;
+    Image gf = make_gaussian_filter(sigma1);
 
-    // TODO: Your bilateral code
-    NOT_IMPLEMENTED();
+    Image res(im.w, im.h, im.c);
 
-    return bf;
+
+    for (int c = 0; c < res.c; c++) {
+        for (int y = 0; y < im.h; y++) {
+            for (int x = 0; x < im.w; x++) {
+
+                // Get bilateral filter
+                Image bf = make_bilateral_filter(im, gf, x, y, c, sigma2);
+
+                float sum = 0.0;
+                // Convolve for pixel x,y,c
+                for (int fy = 0; fy < gf.w; fy++) {
+                    for (int fx = 0; fx < gf.w; fx++) {
+
+                        int ax = x - bf.w / 2 + fx;
+                        int ay = y - bf.w / 2 + fy;
+
+                        sum += bf(fx, fy, 0) * im.clamped_pixel(ax, ay, c);
+                    }
+                }
+
+                res(x, y, c) = sum;
+
+            }
+        }
+    }
+
+    return res;
 }
 
 // HW1 #4.5+ Fast bilateral filter
@@ -241,10 +584,18 @@ float *compute_histogram(const Image &im, int ch, int num_bins) {
     for (int i = 0; i < num_bins; ++i) {
         hist[i] = 0;
     }
-
-    // TODO: Your histogram code
-    NOT_IMPLEMENTED();
-
+    int bin_val;
+    int N = im.w * im.h;
+    float eps = 1.0 / (num_bins * 1000);
+    for (int x = 0; x < im.w; ++x) {
+        for (int y = 0; y < im.h; ++y) {
+            bin_val = (im(x, y, ch) - eps) * (float) num_bins;
+            hist[bin_val]++;
+        }
+    }
+    for (int i = 0; i < num_bins; ++i) {
+        hist[i] /= N;
+    }
     return hist;
 }
 
@@ -252,10 +603,9 @@ float *compute_CDF(float *hist, int num_bins) {
     float *cdf = (float *) malloc(sizeof(float) * num_bins);
 
     cdf[0] = hist[0];
-
-    // TODO: Your cdf code
-    NOT_IMPLEMENTED();
-
+    for (int i = 1; i < num_bins; ++i) {
+        cdf[i] = cdf[i - 1] + hist[i];
+    }
     return cdf;
 }
 
@@ -263,17 +613,27 @@ Image histogram_equalization_hsv(const Image &im, int num_bins) {
     Image new_im(im);
     float eps = 1.0 / (num_bins * 1000);
 
-    // TODO: Your histogram equalization code
-    NOT_IMPLEMENTED();
     // convert to hsv
+    rgb_to_hsv(new_im);
     // compute histograms for the luminance channel
+    float *hist = compute_histogram(new_im, 2, num_bins);
     // compute cdf
+    float *cdf = compute_CDF(hist, num_bins);
     // equalization
+    for (int x = 0; x < new_im.w; ++x) {
+        for (int y = 0; y < new_im.h; ++y) {
+            // convert from [0,1] to the required range and back
+            unsigned int val = (unsigned int) ((new_im(x, y, 2) - eps) *
+                                               num_bins);
+            new_im(x, y, 2) = cdf[val];
+        }
+    }
     // convert back to rgb
+    hsv_to_rgb(new_im);
 
     // delete the allocated memory!
-//    delete hist;
-//    delete cdf;
+    delete hist;
+    delete cdf;
 
     return new_im;
 }
@@ -284,13 +644,21 @@ Image histogram_equalization_rgb(const Image &im, int num_bins) {
 
     // compute histograms for each color channel
     for (int c = 0; c < im.c; ++c) {
-
-        // TODO: Your equalization code
-        NOT_IMPLEMENTED();
-
+        float *hist = compute_histogram(new_im, c, num_bins);
+        // compute cdf
+        float *cdf = compute_CDF(hist, num_bins);
+        // equalization
+        for (int x = 0; x < new_im.w; ++x) {
+            for (int y = 0; y < new_im.h; ++y) {
+                // convert from [0,1] to the required range and back
+                unsigned int val = (unsigned int) ((new_im(x, y, c) - eps) *
+                                                   num_bins);
+                new_im(x, y, c) = cdf[val];
+            }
+        }
         // delete the allocated memory!
-//        delete hist;
-//        delete cdf;
+        delete hist;
+        delete cdf;
     }
 
     return new_im;
